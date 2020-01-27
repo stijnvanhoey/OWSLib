@@ -375,10 +375,10 @@ class WebFeatureService_2_0_0(WebFeatureService_):
             (upon presentation) the set of feature instances that
             satify the query.
         """
-        if any(k is not None for k in (filter, bbox,
+        if any(k is not None for k in [filter, bbox,
                 featureid, featureversion, storedQueryID,
-                storedQueryParams, outputFormat, startindex, sort_by)]:
-            raise NotImplementedError
+                outputFormat, startindex, sortby]) or storedQueryParams:
+            raise NotImplementedError()
 
         base_url = self._get_base_url("Post")
 

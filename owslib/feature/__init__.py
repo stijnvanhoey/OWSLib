@@ -12,6 +12,8 @@ import logging
 from owslib.util import log, Authentication
 from owslib.feature.schema import get_schema
 
+from owslib.namespaces import Namespaces
+
 
 class WebFeatureService_(object):
     """Base class for WebFeatureService implementations"""
@@ -105,6 +107,18 @@ class WebFeatureService_(object):
             )
             return None
 
+    def _get_base_url(self, http_method="Get"):
+        """Check the available feature and return base url"""
+        base_url = next(
+            (
+                m.get("url")
+                for m in self.getOperationByName("GetFeature").methods
+                if m.get("type").lower() == http_method.lower()
+            )
+        )
+        base_url = base_url if base_url.endswith("?") else base_url + "?"
+        return base_url
+
     def getGETGetFeatureRequest(
         self,
         typename=None,
@@ -117,7 +131,6 @@ class WebFeatureService_(object):
         storedQueryID=None,
         storedQueryParams=None,
         outputFormat=None,
-        method="Get",
         startindex=None,
         sortby=None,
     ):
@@ -137,8 +150,6 @@ class WebFeatureService_(object):
             List of feature property names. '*' matches all.
         maxfeatures : int
             Maximum number of features to be returned.
-        method : string
-            Qualified name of the HTTP DCP method to use.
         outputFormat: string (optional)
             Requested response format of the request.
         startindex: int (optional)
@@ -156,14 +167,7 @@ class WebFeatureService_(object):
         """
         storedQueryParams = storedQueryParams or {}
 
-        base_url = next(
-            (
-                m.get("url")
-                for m in self.getOperationByName("GetFeature").methods
-                if m.get("type").lower() == method.lower()
-            )
-        )
-        base_url = base_url if base_url.endswith("?") else base_url + "?"
+        base_url = self._get_base_url("Get")
 
         request = {"service": "WFS", "version": self.version, "request": "GetFeature"}
 
@@ -205,6 +209,10 @@ class WebFeatureService_(object):
         data = urlencode(request, doseq=True)
 
         return base_url + data
+
+
+
+
 
     def get_schema(self, typename):
         """

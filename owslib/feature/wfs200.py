@@ -284,14 +284,27 @@ class WebFeatureService_2_0_0(WebFeatureService_):
                 storedQueryID,
                 storedQueryParams,
                 outputFormat,
-                "Get",
                 startindex,
                 sortby,
             )
             if log.isEnabledFor(logging.DEBUG):
                 log.debug("GetFeature WFS GET url %s" % url)
         else:
-            (url, data) = self.getPOSTGetFeatureRequest()
+            url = self.url
+            data = self.getPOSTGetFeatureRequest(
+                typename,
+                filter,
+                bbox,
+                featureid,
+                featureversion,
+                propertyname,
+                maxfeatures,
+                storedQueryID,
+                storedQueryParams,
+                outputFormat,
+                startindex,
+                sortby,
+            )
 
         # If method is 'Post', data will be None here
         u = openURL(url, data, method, timeout=self.timeout, headers=self.headers, auth=self.auth)
@@ -326,6 +339,139 @@ class WebFeatureService_2_0_0(WebFeatureService_):
             if have_read:
                 return makeStringIO(data)
             return u
+
+
+    def getPOSTGetFeatureRequest(self, typename=None, filter=None, bbox=None, featureid=None,
+        featureversion=None, propertyname=None, maxfeatures=None, storedQueryID=None, storedQueryParams=None,
+        outputFormat=None, startindex=None, sortby=None):
+        """
+        """
+        if any(k is not None for k in (filter, bbox,
+                featureid, featureversion, storedQueryID,
+                storedQueryParams, outputFormat, startindex, sort_by)]:
+            raise NotImplementedError
+
+        base_url = self._get_base_url("Post")
+
+        n = Namespaces()
+        n.get_namespace("wfs20")
+
+        xml = etree.Element(nspath("GetFeature", ns=WFS_NAMESPACE))
+        xml.set('service', 'WFS')
+        xml.set('version', self.version)
+
+        if maxfeatures is not None:
+            xml.set('count', str(maxfeatures))
+
+        xml.set('{http://www.w3.org/2001/XMLSchema-instance}schemaLocation',
+                'http://www.opengis.net/wfs/2.0 '
+                'http://schemas.opengis.net/wfs/{}/wfs.xsd'.format(self.version))
+
+        query = etree.Element(nspath("Query", ns=WFS_NAMESPACE))
+        query.set('typeNames', ",".join(typename))
+
+        if propertyname and len(propertyname) > 0:
+            for property in propertyname:
+                propertyname_xml = etree.Element(
+                    nspath("PropertyName", ns=WFS_NAMESPACE))
+                propertyname_xml.text = property
+                query.append(propertyname_xml)
+
+        xml.append(query)
+
+        return etree.tostring(xml)
+
+
+# def wfs_build_getfeature_request(typename, geometry_column=None, location=None,
+#                                  filter=None, sort_by=None, propertyname=None,
+#                                  max_features=None, version='1.1.0'):
+#     """Build a WFS GetFeature request in XML to be used as payload in a WFS
+#     GetFeature request using POST.
+
+#     Parameters
+#     ----------
+#     typename : str
+#         Typename to query.
+#     geometry_column : str, optional
+#         Name of the geometry column to use in the spatial filter.
+#         Required if the ``location`` parameter is supplied.
+#     location : pydov.util.location.AbstractLocationFilter
+#         Location filter limiting the features to retrieve.
+#         Requires ``geometry_column`` to be supplied as well.
+#     filter : str of owslib.fes.FilterRequest, optional
+#         Filter request to search on attribute values.
+#     sort_by : str of owslib.fes.SortBy, optional
+#         List of properties to sort by.
+#     propertyname : list<str>, optional
+#         List of properties to return. Defaults to all properties.
+#     max_features : int
+#         Limit the maximum number of features to request.
+#     version : str, optional
+#         WFS version to use. Defaults to 1.1.0
+
+#     Raises
+#     ------
+#     AttributeError
+#         If ``bbox`` is given without ``geometry_column``.
+
+#     Returns
+#     -------
+#     element : etree.Element
+#         XML element representing the WFS GetFeature request.
+
+#     """
+#     if location is not None and geometry_column is None:
+#         raise AttributeError('location requires geometry_column and it is '
+#                              'None')
+
+#     xml = etree.Element('{http://www.opengis.net/wfs}GetFeature')
+#     xml.set('service', 'WFS')
+#     xml.set('version', version)
+
+#     if max_features is not None:
+#         if (not isinstance(max_features, int)) or (max_features <= 0):
+#             raise AttributeError('max_features should be a positive integer')
+#         xml.set('maxFeatures', str(max_features))
+
+#     xml.set('{http://www.w3.org/2001/XMLSchema-instance}schemaLocation',
+#             'http://www.opengis.net/wfs '
+#             'http://schemas.opengis.net/wfs/{}/wfs.xsd'.format(version))
+
+#     query = etree.Element('{http://www.opengis.net/wfs}Query')
+#     query.set('typeName', typename)
+
+#     if propertyname and len(propertyname) > 0:
+#         for property in propertyname:
+#             propertyname_xml = etree.Element(
+#                 '{http://www.opengis.net/wfs}PropertyName')
+#             propertyname_xml.text = property
+#             query.append(propertyname_xml)
+
+#     filter_xml = etree.Element('{http://www.opengis.net/ogc}Filter')
+#     filter_parent = filter_xml
+
+#     if filter is not None and location is not None:
+#         # if both filter and location are specified, we wrap them inside an
+#         # ogc:And
+#         and_xml = etree.Element('{http://www.opengis.net/ogc}And')
+#         filter_xml.append(and_xml)
+#         filter_parent = and_xml
+
+#     if filter is not None:
+#         filterrequest = etree.fromstring(filter)
+#         filter_parent.append(filterrequest[0])
+
+#     if location is not None:
+#         location = set_geometry_column(location, geometry_column)
+#         filter_parent.append(location)
+
+#     query.append(filter_xml)
+
+#     if sort_by is not None:
+#         query.append(etree.fromstring(sort_by))
+
+#     xml.append(query)
+#     return xml
 
     def getpropertyvalue(
         self,
